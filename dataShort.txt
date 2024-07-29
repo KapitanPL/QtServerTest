@@ -1,0 +1,3 @@
+Edison,2024-07-22,Heart,Red,Animate dead
+Einstein,2024-07-22,Brain,Blue,Animate dead
+Edison,2024-07-22,Brain,Blue,Animate dead

@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/gnr_slide_scanning">
+        <file>SlideScanning/Explorer/main.html</file>
+        <file>SlideScanning/Explorer/js/main.js</file>
+        <file>SlideScanning/Explorer/js/jquery-ui.min.js</file>
+        <file>SlideScanning/Explorer/js/jquery.fancytree-all-deps.min.js</file>
+        <file>SlideScanning/Explorer/css/jquery-ui.min.css</file>
+        <file>SlideScanning/Explorer/css/ui.fancytree.min.css</file>
+        <file>SlideScanning/Explorer/js/jquery-3.6.0.min.js</file>
+    </qresource>
+    <qresource prefix="/">
+        <file>dataShort.txt</file>
+        <file>dataLong.txt</file>
+    </qresource>
+</RCC>
