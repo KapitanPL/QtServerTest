@@ -23,6 +23,11 @@ SlideScanning::CLxSlideScanningServer::CLxSlideScanningServer(QAbstractListModel
         return serveStaticFile(request.url().path());
         });
 
+     createRoute("/gnr_slide_scanning/SlideScanning/Explorer/skin-lion/", [this](const QString&, const QHttpServerRequest& request) {
+        return serveStaticFile(request.url().path());
+     });
+
+
      createRoute("/headers", [this](const QHttpServerRequest&) {
         return getHeaders();
      });

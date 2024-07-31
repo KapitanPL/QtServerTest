@@ -27,20 +27,15 @@ class QueriesCache {
       let targetData = this.data;
       if(pathToGroup){
          let keys = reversKeys ? Object.keys(pathToGroup).reverse() :Object.keys(pathToGroup);
-         //console.log("hasQuery::keys", keys);
          for( let key of keys) {
-            //console.log("hasQuery: progression:", key);
             if(!((key in targetData) && (pathToGroup[key] in targetData[key])))
             {
-               //console.log("hasQuery: false", key, pathToGroup[key], this.data, targetData);
                return false;
             } else {
                targetData = targetData[key][pathToGroup[key]];
-               //console.log("hasQuery: changingTargeData: ", key, pathToGroup, targetData);
             }
          }
       }
-      //console.log("hasQUery: ", (query in targetData), query, pathToGroup, this.data );
       return (query in targetData);
    }
 
@@ -67,7 +62,9 @@ const TreeManager = {
          .then(headers => {
             TreeManager.headers = headers;
             TreeManager.updateTableHeaders();
-            TreeManager.fetchRows(TreeManager.headers[0]);
+            TreeManager.loadChildren({}).then( (treeData) => {
+            TreeManager.renderTree(treeData);
+            });
          })
          .catch(error => {
             console.error('Error fetching headers:', error);
@@ -93,18 +90,24 @@ const TreeManager = {
             oldRows[row["rowID"]] = row;
          } );   
       }
-      fetch(url, {
+      return fetch(url, {
          method: 'GET'
       })
-         .then(response => response.json())
+         .then(response => {
+                   if (!response.ok) {
+                      throw new Error('Network response was not ok ' + response.statusText);
+                   }
+                   return response.json();
+                })
          .then(rows => {
             console.log("fetchRows: ", rows);
             this.queriedBranchesCache.addQuery(queryGroup, pathToGroup);
             mergeRows(TreeManager.rows, rows);
-            TreeManager.populateTree(TreeManager.rows);
+            return rows;
          })
          .catch(error => {
             console.error('Error fetching rows:', error);
+            return [];
          });
    },
 
@@ -146,99 +149,96 @@ const TreeManager = {
    },
 
    renderTree: function(treeData) {
+      console.log("rednerTree: ", treeData);
       if ($("#fancyTreeContainer").data("ui-fancytree")) {
          $("#fancyTreeContainer").fancytree("destroy");
       }
       $("#fancyTreeContainer").fancytree({
          source: treeData,
-         activate: function(event, data) {
-            console.log("ACTIVATE");
-            var node = data.node;
-            var parents = [];
-            var currentNode = node;
-            var depth = 0;
-            while (currentNode.parent) {
-               depth++;
-               parents.push(currentNode.title);
-               currentNode = currentNode.parent;
-            }
-            if(depth == TreeManager.headers.length)
-            {
-               return;
-            }
-            var pathToGroup = {};
-            var key = TreeManager.headers[depth];
-            while(depth > 0) {
-               depth--;
-               pathToGroup[TreeManager.headers[depth]] = parents[parents.length - depth - 1];
-            }
-            console.log("activate:pathToGroup", pathToGroup);
-            if( TreeManager.queriedBranchesCache.hasQuery(key, pathToGroup, true))
-            {
-               node.toggleExpanded();
-            } else {
-               TreeManager.fetchRows(key, pathToGroup);
-            }
-            // Perform other actions here
-         }
+         click: function(event, data) {
+               data.node.toggleExpanded();
+         },
+         lazyLoad: function(event, data) {
+             data.result = TreeManager.loadChildren(data.node);
+          },
       });
 
       //TreeManager.sortTree();
    },
 
-   populateTree: function (rows) {
-
-      console.log("populateTree", rows);
-      
-       const getNextKey = (key) => {
-         if (!key) {
-           return TreeManager.headers.length > 0 ? TreeManager.headers[0] : '';
-         }
-         const index = TreeManager.headers.indexOf(key);
-         if (index !== -1 && index < TreeManager.headers.length - 1) {
-           return TreeManager.headers[index + 1];
-         }
-         return '';
-       };
-
-
-       const addToObject = (key, toInsert, target, pathToTarget) => {
-         var containsKey = false;
-         var nextKey = getNextKey(key);
-         target.forEach((obj) => {
-           if (obj.title === toInsert[key]) {
-             containsKey = true;
-             if (nextKey && toInsert.hasOwnProperty(nextKey)) {
-                if (!obj.children) {
-                  obj.children = [];
-               }
-               pathToTarget[key] = toInsert[key];
-               addToObject(nextKey, toInsert, obj.children, pathToTarget);
-             }
-           }
-         });
-         if (!containsKey) {
-            if(key in toInsert)
-            {
-               pathToTarget[key] = toInsert[key];
-               console.log("addToObject:pathToGroup", pathToTarget);
-               let canExpand = TreeManager.queriedBranchesCache.hasQuery(nextKey, pathToTarget);
-               console.log("ToInsert: ", key, toInsert[key], canExpand);
-               target.push({ title: toInsert[key], expanded: canExpand });
-               addToObject(key, toInsert, target, pathToTarget); // to insert the rest
-            }
-         }
-       };
-
-      var treeData = [];
-      for( let key in rows){
-         console.log("Add row to TreeData START", rows[key]);
-         addToObject(TreeManager.headers[0], rows[key], treeData, {});
-         console.log("Add row to TreeData END", rows[key]);
-      }
-
-      this.renderTree(treeData);
+   getPathToGroupAndKey: function (node) {
+       let parents = [];
+       let currentNode = node;
+       let depth = 0;
+       while (currentNode.parent) {
+          depth++;
+          parents.push(currentNode.title);
+          currentNode = currentNode.parent;
+       }
+       if(depth === TreeManager.headers.length)
+       {
+          return {};
+       }
+       let pathToGroup = {};
+       let workKey = TreeManager.headers[depth];
+       while(depth > 0) {
+          depth--;
+          pathToGroup[TreeManager.headers[depth]] = parents[parents.length - depth - 1];
+       }
+       return { path: pathToGroup, key: workKey};
    },
+
+    getNextKey: function (key) {
+             if (!key) {
+               return TreeManager.headers.length > 0 ? TreeManager.headers[0] : '';
+             }
+             const index = TreeManager.headers.indexOf(key);
+             if (index !== -1 && index < TreeManager.headers.length - 1) {
+               return TreeManager.headers[index + 1];
+             }
+             return '';
+           },
+
+    addToObject: function (key, toInsert, target, pathToTarget) {
+      var containsKey = false;
+      var nextKey = TreeManager.getNextKey(key);
+      target.forEach((obj) => {
+        if (obj.title === toInsert[key]) {
+          containsKey = true;
+          if (nextKey && toInsert.hasOwnProperty(nextKey)) {
+             if (!obj.children) {
+               obj.children = [];
+            }
+            pathToTarget[key] = toInsert[key];
+            TreeManager.addToObject(nextKey, toInsert, obj.children, pathToTarget);
+          }
+        }
+      });
+      if (!containsKey) {
+         if(key in toInsert)
+         {
+            pathToTarget[key] = toInsert[key];
+            let canExpand = TreeManager.queriedBranchesCache.hasQuery(nextKey, pathToTarget);
+             let isLast = key === TreeManager.headers.at(-1);
+            target.push({ title: toInsert[key], expanded: canExpand, lazy: !isLast });
+            TreeManager.addToObject(key, toInsert, target, pathToTarget); // to insert the rest
+         }
+      }
+    },
+
+    loadChildren: function (node) {
+        let nodeInfo = TreeManager.getPathToGroupAndKey(node);
+        let pathToGroup = nodeInfo ? nodeInfo.path : {};
+        let nodeKey = Object.keys(pathToGroup).length ? nodeInfo.key : TreeManager.headers[0];
+        return TreeManager.fetchRows(nodeKey, pathToGroup).then( (rows) => {
+            var treeData = [];
+            for( let key in rows){
+               TreeManager.addToObject(nodeKey, rows[key], treeData, {});
+            }
+            return treeData;
+        }
+        );
+    },
 
    makeHeadersSortable: function () {
       $("#fancyTable thead").sortable({
@@ -270,3 +270,33 @@ const TreeManager = {
 
 // Initialize the TreeManager
 TreeManager.init();
+
+const TreeManagerTest = {
+
+    getTestData: function () {
+          // Sample static data for testing
+          return [
+             { title: "Root 1", folder: true, children: [
+                { title: "Child 1.1", folder: true, children: [
+                   { title: "Child 1.1.1", folder: false, noExpander: true },
+                   { title: "Child 1.1.2", folder: false, noExpander: true }
+                ]},
+                { title: "Child 1.2", folder: false, noExpander: true }
+             ]},
+             { title: "Root 2", folder: true, children: [
+                { title: "Child 2.1", folder: false, noExpander: true }
+             ]}
+          ];
+       },
+
+   init: function () {
+      document.addEventListener("DOMContentLoaded", function () {
+          $("#fancyTreeContainer").fancytree({
+             source: TreeManagerTest.getTestData(),
+          });
+      });
+   },
+
+};
+
+//TreeManagerTest.init();

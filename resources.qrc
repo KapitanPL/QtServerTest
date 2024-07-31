@@ -7,6 +7,7 @@
         <file>SlideScanning/Explorer/css/jquery-ui.min.css</file>
         <file>SlideScanning/Explorer/css/ui.fancytree.min.css</file>
         <file>SlideScanning/Explorer/js/jquery-3.6.0.min.js</file>
+        <file>SlideScanning/Explorer/skin-lion/icons.gif</file>
     </qresource>
     <qresource prefix="/">
         <file>dataShort.txt</file>
