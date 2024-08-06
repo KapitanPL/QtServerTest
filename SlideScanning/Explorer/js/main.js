@@ -23,7 +23,6 @@ class QueriesCache {
    }
 
    hasQuery(query, pathToGroup, reversKeys = false) {
-      
       let targetData = this.data;
       if(pathToGroup){
          let keys = reversKeys ? Object.keys(pathToGroup).reverse() :Object.keys(pathToGroup);
@@ -44,8 +43,7 @@ class QueriesCache {
 const TreeManager = {
    headers: [],
    rows: {},
-   sortOrder: 'asc', // Default sort order
-   currentSortColumn: null, // To track the current sorted column
+   sortOrder: {},
    queriedBranchesCache: new QueriesCache(),
 
    init: function () {
@@ -87,7 +85,12 @@ const TreeManager = {
 
       const mergeRows = (oldRows, newRows) => {
          newRows.forEach( (row) =>{
-            oldRows[row["rowID"]] = row;
+            Object.keys(row).forEach((key) => {
+               if(!oldRows.hasOwnProperty(row["rowID"])){
+                  oldRows[row["rowID"]]=[];
+               }
+               oldRows[row["rowID"]][key] = row[key];
+            });
          } );   
       }
       return fetch(url, {
@@ -128,24 +131,17 @@ const TreeManager = {
 
    handleHeaderClick: function (event) {
       const header = event.target.getAttribute('data-header');
-      if (TreeManager.currentSortColumn === header) {
-         TreeManager.sortOrder = TreeManager.sortOrder === 'asc' ? 'desc' : 'asc';
+      if (!(header in TreeManager.sortOrder))
+      {
+          TreeManager.sortOrder[header] = 'asc';
       } else {
-         TreeManager.currentSortColumn = header;
-         TreeManager.sortOrder = 'asc';
+          TreeManager.sortOrder[header] = (TreeManager.sortOrder[header] === 'asc') ? 'desc' :'asc';
       }
-      TreeManager.sortTree();
-      TreeManager.updateSortIndicators();
-   },
-
-   updateSortIndicators: function () {
-      const headers = document.querySelectorAll("#fancyTable thead th");
-      headers.forEach(header => {
-         header.classList.remove('sort-asc', 'sort-desc');
-         if (header.getAttribute('data-header') === TreeManager.currentSortColumn) {
-            header.classList.add(TreeManager.sortOrder === 'asc' ? 'sort-asc' : 'sort-desc');
-         }
-      });
+      let level = 0;
+      while(header !== TreeManager.headers[level]){
+          level++;
+      }
+      TreeManager.sortTree(level,TreeManager.sortOrder[header]);
    },
 
    renderTree: function(treeData) {
@@ -162,8 +158,6 @@ const TreeManager = {
              data.result = TreeManager.loadChildren(data.node);
           },
       });
-
-      //TreeManager.sortTree();
    },
 
    getPathToGroupAndKey: function (node) {
@@ -226,16 +220,34 @@ const TreeManager = {
       }
     },
 
+    fetchCachedRows: function(key, pathToGroup) {
+        if (TreeManager.queriedBranchesCache.hasQuery(key, pathToGroup))
+        {
+            return TreeManager.rows;
+        }
+        return [];
+    },
+
     loadChildren: function (node) {
         let nodeInfo = TreeManager.getPathToGroupAndKey(node);
         let pathToGroup = nodeInfo ? nodeInfo.path : {};
         let nodeKey = Object.keys(pathToGroup).length ? nodeInfo.key : TreeManager.headers[0];
-        return TreeManager.fetchRows(nodeKey, pathToGroup).then( (rows) => {
+
+        const buildTreeData = (rows) => {
             var treeData = [];
             for( let key in rows){
                TreeManager.addToObject(nodeKey, rows[key], treeData, {});
             }
             return treeData;
+        }
+
+        let cachedRows = TreeManager.fetchCachedRows(nodeKey, pathToGroup);
+        if ( Object.keys(cachedRows).length) {
+            return Promise.resolve(buildTreeData(cachedRows)); // The promiese allows only to chain in .then clause
+        }
+
+        return TreeManager.fetchRows(nodeKey, pathToGroup).then( (rows) => {
+            return buildTreeData(rows);
         }
         );
     },
@@ -251,20 +263,37 @@ const TreeManager = {
             });
             TreeManager.headers = newHeaders;
             TreeManager.updateTableHeaders();
-            TreeManager.fetchRows(TreeManager.headers[0]);
+             TreeManager.loadChildren({}).then( (treeData) => {
+             TreeManager.renderTree(treeData);
+             });
          }
       });
    },
 
-   sortTree: function () {
-      const sortBy = TreeManager.currentSortColumn;
-      const sortOrder = TreeManager.sortOrder;
-      if (!sortBy) return;
-      $("#fancyTreeContainer").fancytree("getRootNode").sortChildren(function(a, b) {
-         if (a.data[sortBy] < b.data[sortBy]) return sortOrder === 'asc' ? -1 : 1;
-         if (a.data[sortBy] > b.data[sortBy]) return sortOrder === 'asc' ? 1 : -1;
-         return 0;
-      }, true);
+   sortBranch: function(node, sortOrder) {
+       node.sortChildren(function(a, b) {
+           if (a.title < b.title) return sortOrder === 'asc' ? -1 : 1;
+           if (a.title > b.title) return sortOrder === 'asc' ? 1 : -1;
+           return 0;
+        }, true);
+   },
+
+    walkNode: function(node, currentLevel, targetLevel, callback) {
+        if (currentLevel < targetLevel) {
+            if (node.children) {
+                node.children.forEach((childNode) => {
+                    TreeManager.walkNode(childNode, currentLevel + 1, targetLevel, callback);
+                });
+            }
+        } else if (currentLevel === targetLevel) {
+            callback(node);
+        }
+    },
+
+   sortTree: function (level, sortOrder) {
+       let tree = $.ui.fancytree.getTree("#fancyTreeContainer");
+       let root = tree.getRootNode();
+       TreeManager.walkNode(root, 0, level, (node) => TreeManager.sortBranch(node, sortOrder));
    }
 };
 

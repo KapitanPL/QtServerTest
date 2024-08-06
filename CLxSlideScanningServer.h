@@ -13,7 +13,7 @@ public:
    GreatPretender(QObject* parent = nullptr)
        : QAbstractListModel(parent)
    {
-       loadDataFromFile(":/dataShort.txt");
+      loadDataFromFile(":/dataShort.txt");
    }
 
    virtual QHash<int, QByteArray> roleNames() const override {
@@ -33,67 +33,64 @@ public:
 
    QVariant data(const QModelIndex& index, int role = Qt::DisplayRole) const override
    {
-      if( role > Qt::UserRole)
-         return fakeData[index.row()][role - Qt::UserRole -1];
+      if (role > Qt::UserRole)
+         return fakeData[index.row()][role - Qt::UserRole - 1];
       return QVariant();
    }
 
 private:
    void loadDataFromFile(const QString& fileName)
    {
-       QFile file(fileName);
-       if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-           qWarning() << "Unable to open file" << fileName;
-           return;
-       }
+      QFile file(fileName);
+      if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
+         qWarning() << "Unable to open file" << fileName;
+         return;
+      }
 
-       QTextStream in(&file);
-       while (!in.atEnd()) {
-           QString line = in.readLine();
-           QStringList fields = line.split(',');
+      QTextStream in(&file);
+      while (!in.atEnd()) {
+         QString line = in.readLine();
+         QStringList fields = line.split(',');
 
-           if (fields.size() == 5) {
-               QList<QVariant> row;
-               row.append(fields[0]);
-               row.append(QDate::fromString(fields[1], "yyyy-MM-dd"));
-               row.append(fields[2]);
-               row.append(fields[3]);
-               row.append(fields[4]);
-               fakeData.append(row);
-           }
-       }
+         if (fields.size() == 5) {
+            QList<QVariant> row;
+            row.append(fields[0]);
+            row.append(QDate::fromString(fields[1], "yyyy-MM-dd"));
+            row.append(fields[2]);
+            row.append(fields[3]);
+            row.append(fields[4]);
+            fakeData.append(row);
+         }
+      }
 
-       file.close();
+      file.close();
    }
 };
 
-// class QAbstractListModel;
-
 namespace SlideScanning {
-   class SlideModel;
+class SlideModel;
 
-   class CLxSlideScanningServer :
-      public QObject
-   {
-      Q_OBJECT;
-      Q_PROPERTY(QUrl url READ url)
-   public:
-      CLxSlideScanningServer(QAbstractListModel* sourceModel, QObject* parent = nullptr);
-      virtual ~CLxSlideScanningServer() = default;
+class CLxSlideScanningServer :
+                               public QObject
+{
+   Q_OBJECT;
+   Q_PROPERTY(QUrl url READ url)
+public:
+   CLxSlideScanningServer(QSharedPointer<QAbstractListModel> sourceModel, QObject* parent = nullptr);
+   virtual ~CLxSlideScanningServer() = default;
 
-   protected:
-      virtual QHttpServerResponse serveStaticFile(const QString& path) const;
-      virtual QHttpServerResponse getHeaders() const;
-      virtual QHttpServerResponse getRows(const QHttpServerRequest& request) const;
-      virtual QUrl url() const;
+protected:
+   virtual QHttpServerResponse serveStaticFile(const QString& path) const;
+   virtual QHttpServerResponse getHeaders() const;
+   virtual QHttpServerResponse getRows(const QHttpServerRequest& request) const;
+   virtual QUrl url() const;
 
-      bool  createRoute(QString rule, std::function<QHttpServerResponse(const QHttpServerRequest&)> callback);
-      bool  createRoute(QString rule, std::function<QHttpServerResponse(const QString& ,const QHttpServerRequest&)> callback);
+   bool  createRoute(QString rule, std::function<QHttpServerResponse(const QHttpServerRequest&)> callback);
+   bool  createRoute(QString rule, std::function<QHttpServerResponse(const QString&, const QHttpServerRequest&)> callback);
 
-   private:
-      QHttpServer m_server;
-      //SlideModel* m_pSourceModel = nullptr;
-      GreatPretender* m_pSourceModel;
-   };
+private:
+   QHttpServer m_server;
+   QWeakPointer<QAbstractListModel> m_pSourceModel;
+};
 
 } // namespace SlideScanning

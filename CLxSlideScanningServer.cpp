@@ -6,35 +6,34 @@
 #include <QMimeDatabase>
 #include <QFile>
 
-SlideScanning::CLxSlideScanningServer::CLxSlideScanningServer(QAbstractListModel* sourceModel, QObject* parent)
-   : QObject(parent)
-   //, m_pSourceModel(dynamic_cast<SlideModel*>(sourceModel))
+SlideScanning::CLxSlideScanningServer::CLxSlideScanningServer(QSharedPointer<QAbstractListModel> sourceModel, QObject* parent)
+    : QObject(parent)
+    , m_pSourceModel(sourceModel)
 {
-      m_pSourceModel = new GreatPretender();
-     createRoute("/", [this](const QHttpServerRequest& request) {
-         return serveStaticFile(request.url().path());
-         });
+   createRoute("/", [this](const QHttpServerRequest& request) {
+      return serveStaticFile(request.url().path());
+   });
 
-     createRoute("/gnr_slide_scanning/SlideScanning/Explorer/js/", [this](const QString &, const QHttpServerRequest& request) {
-        return serveStaticFile(request.url().path());
-        });
+   createRoute("/gnr_slide_scanning/SlideScanning/Explorer/js/", [this](const QString&, const QHttpServerRequest& request) {
+      return serveStaticFile(request.url().path());
+   });
 
-     createRoute("/gnr_slide_scanning/SlideScanning/Explorer/css/", [this](const QString&, const QHttpServerRequest& request) {
-        return serveStaticFile(request.url().path());
-        });
+   createRoute("/gnr_slide_scanning/SlideScanning/Explorer/css/", [this](const QString&, const QHttpServerRequest& request) {
+      return serveStaticFile(request.url().path());
+   });
 
-     createRoute("/gnr_slide_scanning/SlideScanning/Explorer/skin-lion/", [this](const QString&, const QHttpServerRequest& request) {
-        return serveStaticFile(request.url().path());
-     });
+   createRoute("/gnr_slide_scanning/SlideScanning/Explorer/skin-lion/", [this](const QString&, const QHttpServerRequest& request) {
+      return serveStaticFile(request.url().path());
+   });
 
 
-     createRoute("/headers", [this](const QHttpServerRequest&) {
-        return getHeaders();
-     });
+   createRoute("/headers", [this](const QHttpServerRequest&) {
+      return getHeaders();
+   });
 
-     createRoute("/rows", [this](const QHttpServerRequest& request) {
-        return getRows(request);
-        });
+   createRoute("/rows", [this](const QHttpServerRequest& request) {
+      return getRows(request);
+   });
 
    m_server.listen(QHostAddress::Any, 8080);
 }
@@ -63,10 +62,11 @@ QHttpServerResponse SlideScanning::CLxSlideScanningServer::serveStaticFile(const
 
 QHttpServerResponse SlideScanning::CLxSlideScanningServer::getHeaders() const
 {
+   auto sourceModel = m_pSourceModel.toStrongRef();
    QJsonArray headers;
-   if (m_pSourceModel)
+   if (sourceModel.isNull() == false)
    {
-      auto headerData = m_pSourceModel->roleNames();
+      auto headerData = sourceModel->roleNames();
       for (auto dta : std::as_const(headerData))
       {
          headers.append(QJsonValue::fromVariant(dta));
@@ -78,6 +78,7 @@ QHttpServerResponse SlideScanning::CLxSlideScanningServer::getHeaders() const
 
 QHttpServerResponse SlideScanning::CLxSlideScanningServer::getRows(const QHttpServerRequest& request) const
 {
+   auto sourceModel = m_pSourceModel.toStrongRef();
    const auto query = request.url().query();
    QUrlQuery urlQuery(query);
 
@@ -90,44 +91,46 @@ QHttpServerResponse SlideScanning::CLxSlideScanningServer::getRows(const QHttpSe
       QString value = QUrl::fromPercentEncoding(item.second.toUtf8()).replace("+", " ");
       if (key == QStringLiteral("queryGroup")) {
          mainQuery = value;
-      } else {
+      }
+      else {
          rolesMap[key] = value;
       }
    }
 
    QJsonArray rows;
-   if (m_pSourceModel)
+   if (sourceModel.isNull() == false)
    {
-      const auto & roleNames = m_pSourceModel->roleNames();
+      const auto& roleNames = sourceModel->roleNames();
       QMap<int32_t, QString> intRolesMap = {};
       int32_t mainRole = -1;
-      for ( auto key : roleNames.keys()) {
-         if( rolesMap.keys().contains(roleNames[key])) {
+      for (auto key : roleNames.keys()) {
+         if (rolesMap.keys().contains(roleNames[key])) {
             intRolesMap[key] = rolesMap[roleNames[key]];
          }
-         if (mainQuery.toLower() == roleNames[key].toLower()){
+         if (mainQuery.toLower() == roleNames[key].toLower()) {
             mainRole = key;
          }
       }
       Q_ASSERT(mainRole != -1);
       QSet<QString> uniqueData;
-      for (int row = 0; row < m_pSourceModel->rowCount(); ++row)
+      for (int row = 0; row < sourceModel->rowCount(); ++row)
       {
          QJsonObject rowObject;
          bool addThisRow = true;
          for (auto role : intRolesMap.keys())
          {
-            auto data = m_pSourceModel->data(m_pSourceModel->index(row, 0), role).toString();
+            auto data = sourceModel->data(sourceModel->index(row, 0), role).toString();
             if (data == intRolesMap[role]) {
-               rowObject[m_pSourceModel->roleNames().value(role)] = QJsonValue::fromVariant(data);
-            } else {
+               rowObject[sourceModel->roleNames().value(role)] = QJsonValue::fromVariant(data);
+            }
+            else {
                addThisRow = false;
                break;
             }
          }
          if (addThisRow) {
-            auto data = m_pSourceModel->data(m_pSourceModel->index(row, 0), mainRole);
-            if(uniqueData.contains(data.toString()) == false)
+            auto data = sourceModel->data(sourceModel->index(row, 0), mainRole);
+            if (uniqueData.contains(data.toString()) == false)
             {
                rowObject[mainQuery] = QJsonValue::fromVariant(data);
                rowObject[QStringLiteral("rowID")] = row;
@@ -157,7 +160,7 @@ bool SlideScanning::CLxSlideScanningServer::createRoute(QString rule, std::funct
    return success;
 }
 
-bool SlideScanning::CLxSlideScanningServer::createRoute(QString rule, std::function<QHttpServerResponse(const QString & detail,const QHttpServerRequest&)> callback)
+bool SlideScanning::CLxSlideScanningServer::createRoute(QString rule, std::function<QHttpServerResponse(const QString& detail, const QHttpServerRequest&)> callback)
 {
    bool success = m_server.route(rule, callback);
    if (!success)
@@ -166,3 +169,4 @@ bool SlideScanning::CLxSlideScanningServer::createRoute(QString rule, std::funct
    }
    return success;
 }
+
