@@ -45,6 +45,9 @@ const TreeManager = {
    rows: {},
    sortOrder: {},
    queriedBranchesCache: new QueriesCache(),
+   dragStartX: 0, // To store the starting X position of the drag
+   dragStartY: 0, // To store the starting Y position of the drag
+   dragThreshold: 5, // Threshold to differentiate between click and drag
 
    init: function () {
       document.addEventListener("DOMContentLoaded", function () {
@@ -58,6 +61,7 @@ const TreeManager = {
       })
          .then(response => response.json())
          .then(headers => {
+                   console.log("headers", JSON.stringify(headers));
             TreeManager.headers = headers;
             TreeManager.updateTableHeaders();
             TreeManager.loadChildren({}).then( (treeData) => {
@@ -122,27 +126,108 @@ const TreeManager = {
          const th = document.createElement("th");
          th.textContent = header;
          th.setAttribute('data-header', header);
-         th.addEventListener('click', TreeManager.handleHeaderClick);
+         th.addEventListener('mousedown', TreeManager.handleMouseDown);
+         th.addEventListener('mouseup', TreeManager.handleMouseUp);
          thead.appendChild(th);
       });
   
       TreeManager.makeHeadersSortable();
+      TreeManager.updateSortIndicators();
     },
 
+    handleMouseDown: function (event) {
+            TreeManager.dragStartX = event.clientX;
+            TreeManager.dragStartY = event.clientY;
+        },
+
+        handleMouseUp: function (event) {
+            const dragEndX = event.clientX;
+            const dragEndY = event.clientY;
+            const diffX = Math.abs(dragEndX - TreeManager.dragStartX);
+            const diffY = Math.abs(dragEndY - TreeManager.dragStartY);
+
+            if (diffX < TreeManager.dragThreshold && diffY < TreeManager.dragThreshold) {
+                TreeManager.handleHeaderClick(event);
+            }
+        },
+
    handleHeaderClick: function (event) {
-      const header = event.target.getAttribute('data-header');
-      if (!(header in TreeManager.sortOrder))
-      {
-          TreeManager.sortOrder[header] = 'asc';
-      } else {
-          TreeManager.sortOrder[header] = (TreeManager.sortOrder[header] === 'asc') ? 'desc' :'asc';
-      }
-      let level = 0;
-      while(header !== TreeManager.headers[level]){
-          level++;
-      }
-      TreeManager.sortTree(level,TreeManager.sortOrder[header]);
+       const header = event.target;
+       const headerWidth = header.offsetWidth;
+       const paddingRight = 30; // The same value as used in CSS for padding-right
+       const clickX = event.clientX - header.getBoundingClientRect().left;
+       const headerName = header.getAttribute('data-header');
+
+           if (clickX > headerWidth - paddingRight) {
+               // Continue with the sort logic if not clicked in the padding area
+               if (!(headerName in TreeManager.sortOrder)) {
+                   TreeManager.sortOrder[headerName] = 'asc';
+               } else {
+                   TreeManager.sortOrder[headerName] = (TreeManager.sortOrder[headerName] === 'asc') ? 'desc' : 'asc';
+               }
+               let level = 0;
+               while (headerName !== TreeManager.headers[level]) {
+                   level++;
+               }
+               TreeManager.sortTree(level, TreeManager.sortOrder[headerName]);
+               TreeManager.updateSortIndicators();
+           } else {
+               TreeManager.toggleFilterWidget(headerName);
+           }
    },
+
+    updateSortIndicators: function () {
+            const headers = document.querySelectorAll("#fancyTable thead th");
+            headers.forEach(header => {
+                const headerName = header.getAttribute('data-header');
+                header.classList.remove('sort-asc', 'sort-desc');
+                if (TreeManager.sortOrder[headerName]) {
+                    header.classList.add(TreeManager.sortOrder[headerName] === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        },
+
+    makeHeadersSortable: function () {
+       $("#fancyTable thead").sortable({
+          items: "> tr > th",
+          axis: "x",
+          stop: function (event, ui) {
+             var newHeaders = [];
+             $("#fancyTable thead th").each(function (index, element) {
+                newHeaders.push($(element).text());
+             });
+             TreeManager.headers = newHeaders;
+             TreeManager.updateTableHeaders();
+              TreeManager.loadChildren({}).then( (treeData) => {
+              TreeManager.renderTree(treeData);
+              });
+          }
+       });
+    },
+
+    toggleFilterWidget: function(header) {
+        const filterContainer = document.getElementById("fancyTreeFilterContainer");
+        const existingWidget = document.querySelector(`#fancyTreeFilterContainer .filter-widget`);
+
+        if (existingWidget) {
+            const existingHeader = existingWidget.getAttribute('data-header');
+            if (existingHeader === header) {
+                // If the existing widget corresponds to the same header, remove it
+                filterContainer.removeChild(existingWidget);
+                return;
+            } else {
+                // If the existing widget corresponds to a different header, remove it
+                filterContainer.removeChild(existingWidget);
+            }
+        }
+
+        // Create a new filter widget
+        const widget = document.createElement("div");
+        widget.classList.add("filter-widget");
+        widget.setAttribute("data-header", header);
+        widget.innerHTML = `<p>Filter options for ${header}</p>`;
+        filterContainer.appendChild(widget);
+    },
 
    renderTree: function(treeData) {
       console.log("rednerTree: ", treeData);
@@ -252,24 +337,6 @@ const TreeManager = {
         );
     },
 
-   makeHeadersSortable: function () {
-      $("#fancyTable thead").sortable({
-         items: "> tr > th",
-         axis: "x",
-         stop: function (event, ui) {
-            var newHeaders = [];
-            $("#fancyTable thead th").each(function (index, element) {
-               newHeaders.push($(element).text());
-            });
-            TreeManager.headers = newHeaders;
-            TreeManager.updateTableHeaders();
-             TreeManager.loadChildren({}).then( (treeData) => {
-             TreeManager.renderTree(treeData);
-             });
-         }
-      });
-   },
-
    sortBranch: function(node, sortOrder) {
        node.sortChildren(function(a, b) {
            if (a.title < b.title) return sortOrder === 'asc' ? -1 : 1;
@@ -299,33 +366,3 @@ const TreeManager = {
 
 // Initialize the TreeManager
 TreeManager.init();
-
-const TreeManagerTest = {
-
-    getTestData: function () {
-          // Sample static data for testing
-          return [
-             { title: "Root 1", folder: true, children: [
-                { title: "Child 1.1", folder: true, children: [
-                   { title: "Child 1.1.1", folder: false, noExpander: true },
-                   { title: "Child 1.1.2", folder: false, noExpander: true }
-                ]},
-                { title: "Child 1.2", folder: false, noExpander: true }
-             ]},
-             { title: "Root 2", folder: true, children: [
-                { title: "Child 2.1", folder: false, noExpander: true }
-             ]}
-          ];
-       },
-
-   init: function () {
-      document.addEventListener("DOMContentLoaded", function () {
-          $("#fancyTreeContainer").fancytree({
-             source: TreeManagerTest.getTestData(),
-          });
-      });
-   },
-
-};
-
-//TreeManagerTest.init();

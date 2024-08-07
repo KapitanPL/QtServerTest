@@ -67,9 +67,11 @@ QHttpServerResponse SlideScanning::CLxSlideScanningServer::getHeaders() const
    if (sourceModel.isNull() == false)
    {
       auto headerData = sourceModel->roleNames();
-      for (auto dta : std::as_const(headerData))
+      auto headerKeys = headerData.keys();
+      std::sort(headerKeys.begin(), headerKeys.end());
+      for (auto headerKey : headerKeys)
       {
-         headers.append(QJsonValue::fromVariant(dta));
+         headers.append(QJsonValue::fromVariant(headerData[headerKey]));
       }
    }
    QJsonDocument jsonDoc(headers);
