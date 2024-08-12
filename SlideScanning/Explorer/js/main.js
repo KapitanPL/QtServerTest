@@ -44,13 +44,16 @@ const TreeManager = {
    headers: [],
    rows: {},
    sortOrder: {},
+   filters: {},
    queriedBranchesCache: new QueriesCache(),
    dragStartX: 0, // To store the starting X position of the drag
    dragStartY: 0, // To store the starting Y position of the drag
    dragThreshold: 5, // Threshold to differentiate between click and drag
+   filterWidget: null,
 
    init: function () {
       document.addEventListener("DOMContentLoaded", function () {
+         TreeManager.filterWidget = new FilterWidget("fancyTreeFilterContainer");
          TreeManager.fetchHeaders();
       });
    },
@@ -157,6 +160,10 @@ const TreeManager = {
        const paddingRight = 30; // The same value as used in CSS for padding-right
        const clickX = event.clientX - header.getBoundingClientRect().left;
        const headerName = header.getAttribute('data-header');
+       let level = 0;
+       while (headerName !== TreeManager.headers[level]) {
+           level++;
+       }
 
            if (clickX > headerWidth - paddingRight) {
                // Continue with the sort logic if not clicked in the padding area
@@ -165,16 +172,46 @@ const TreeManager = {
                } else {
                    TreeManager.sortOrder[headerName] = (TreeManager.sortOrder[headerName] === 'asc') ? 'desc' : 'asc';
                }
-               let level = 0;
-               while (headerName !== TreeManager.headers[level]) {
-                   level++;
-               }
                TreeManager.sortTree(level, TreeManager.sortOrder[headerName]);
+               TreeManager.filterWidget.sort(headerName,TreeManager.sortOrder[headerName]);
                TreeManager.updateSortIndicators();
            } else {
-               TreeManager.toggleFilterWidget(headerName);
+               let currentFilter = Object.keys(TreeManager.filters).includes(headerName) ? TreeManager.filters[headerName] : null;
+               let currentSortOrder = Object.keys(TreeManager.sortOrder).includes(headerName) ? TreeManager.sortOrder[headerName] : null;
+               TreeManager.filterWidget.showWidget(headerName, TreeManager.getUniqueValues(headerName), currentFilter, (filtersChanged) => TreeManager.updateOnFilterChanged(headerName, filtersChanged), currentSortOrder);
            }
    },
+
+    updateOnFilterChanged: function(header, filtersChanged){
+        let level = 0;
+        while (header !== TreeManager.headers[level]) {
+            level++;
+        }
+        if(Object.keys(TreeManager.filters).includes(header) === false) {
+           TreeManager.filters[header] = new Set();
+        }
+
+        console.log("update: ", filtersChanged, typeof(filtersChanged));
+        Object.entries(filtersChanged).forEach( ([opt, check]) => {
+            if( !check ) {
+               TreeManager.filters[header].add(opt);
+            } else {
+               TreeManager.filters[header].delete(opt);
+            }
+        });
+
+        TreeManager.filterTree(level, TreeManager.filters[header]);
+    },
+
+    getUniqueValues: function(key){
+        let values = new Set();
+        Object.entries(TreeManager.rows).forEach( ([id, row]) => {
+            if( Object.keys(row).includes(key) ) {
+                values.add(row[key]);
+            }
+        });
+        return values;
+    },
 
     updateSortIndicators: function () {
             const headers = document.querySelectorAll("#fancyTable thead th");
@@ -203,30 +240,6 @@ const TreeManager = {
               });
           }
        });
-    },
-
-    toggleFilterWidget: function(header) {
-        const filterContainer = document.getElementById("fancyTreeFilterContainer");
-        const existingWidget = document.querySelector(`#fancyTreeFilterContainer .filter-widget`);
-
-        if (existingWidget) {
-            const existingHeader = existingWidget.getAttribute('data-header');
-            if (existingHeader === header) {
-                // If the existing widget corresponds to the same header, remove it
-                filterContainer.removeChild(existingWidget);
-                return;
-            } else {
-                // If the existing widget corresponds to a different header, remove it
-                filterContainer.removeChild(existingWidget);
-            }
-        }
-
-        // Create a new filter widget
-        const widget = document.createElement("div");
-        widget.classList.add("filter-widget");
-        widget.setAttribute("data-header", header);
-        widget.innerHTML = `<p>Filter options for ${header}</p>`;
-        filterContainer.appendChild(widget);
     },
 
    renderTree: function(treeData) {
@@ -337,14 +350,6 @@ const TreeManager = {
         );
     },
 
-   sortBranch: function(node, sortOrder) {
-       node.sortChildren(function(a, b) {
-           if (a.title < b.title) return sortOrder === 'asc' ? -1 : 1;
-           if (a.title > b.title) return sortOrder === 'asc' ? 1 : -1;
-           return 0;
-        }, true);
-   },
-
     walkNode: function(node, currentLevel, targetLevel, callback) {
         if (currentLevel < targetLevel) {
             if (node.children) {
@@ -357,11 +362,39 @@ const TreeManager = {
         }
     },
 
+
+    sortBranch: function(node, sortOrder) {
+        node.sortChildren(function(a, b) {
+            if (a.title < b.title) return sortOrder === 'asc' ? -1 : 1;
+            if (a.title > b.title) return sortOrder === 'asc' ? 1 : -1;
+            return 0;
+         }, true);
+    },
+
    sortTree: function (level, sortOrder) {
        let tree = $.ui.fancytree.getTree("#fancyTreeContainer");
        let root = tree.getRootNode();
        TreeManager.walkNode(root, 0, level, (node) => TreeManager.sortBranch(node, sortOrder));
-   }
+   },
+
+    filterBranch: function(node, filterOut) {
+        if(!node.children)
+            return;
+        node.children.forEach(function(childNode) {
+            if ( filterOut.has( childNode.title ) ) {
+                childNode.setExpanded(false);
+                $(childNode.span).hide();
+            } else {
+                $(childNode.span).show();
+            }
+        });
+    },
+
+    filterTree: function(level, filterOut){
+        let tree = $.ui.fancytree.getTree("#fancyTreeContainer");
+        let root = tree.getRootNode();
+        TreeManager.walkNode(root, 0, level, (node) => TreeManager.filterBranch(node, filterOut));
+    },
 };
 
 // Initialize the TreeManager

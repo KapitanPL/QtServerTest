@@ -1,0 +1,20 @@
+.filter-widget {
+   border: 1px solid #ccc;
+   max-height: 150px; /* Adjust as needed */
+   box-sizing: border-box;
+}
+
+.filter-content {
+   max-height: 130px; /* Adjust as needed */
+   overflow-y: auto; /* Enable vertical scrolling */
+   border: 1px solid #eee;
+   padding-left: 10px;
+}
+
+.filter-edit {
+   padding: 5px;
+}
+
+.filter-label-rightgap{
+padding-right: 5px;
+}

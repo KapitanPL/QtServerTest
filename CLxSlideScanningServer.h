@@ -19,10 +19,10 @@ public:
    virtual QHash<int, QByteArray> roleNames() const override {
       QHash<int, QByteArray> roles;
       roles[Qt::UserRole + 1] = "UserG";
-      roles[Qt::UserRole + 2] = "Date";
-      roles[Qt::UserRole + 3] = "Tissue";
-      roles[Qt::UserRole + 4] = "Staining";
-      roles[Qt::UserRole + 5] = "Project";
+      roles[Qt::UserRole + 2] = "Tissue";
+      roles[Qt::UserRole + 3] = "Staining";
+      roles[Qt::UserRole + 4] = "Project";
+      roles[Qt::UserRole + 5] = "Date";
       return roles;
    }
 
@@ -55,10 +55,10 @@ private:
          if (fields.size() == 5) {
             QList<QVariant> row;
             row.append(fields[0]);
-            row.append(QDate::fromString(fields[1], "yyyy-MM-dd"));
             row.append(fields[2]);
             row.append(fields[3]);
             row.append(fields[4]);
+            row.append(QDate::fromString(fields[1], "yyyy-MM-dd"));
             fakeData.append(row);
          }
       }
