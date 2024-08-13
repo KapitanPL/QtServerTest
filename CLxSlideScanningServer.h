@@ -13,7 +13,7 @@ public:
    GreatPretender(QObject* parent = nullptr)
        : QAbstractListModel(parent)
    {
-      loadDataFromFile(":/dataShort.txt");
+      loadDataFromFile(":/dataLong.txt");
    }
 
    virtual QHash<int, QByteArray> roleNames() const override {

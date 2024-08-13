@@ -17,15 +17,18 @@
           padding-right: 30px;
        }
        th.sort-asc::after {
-           content: "\25B2"; /* Unicode for ▲ */
+           content: "\25BC"; 
            position: absolute;
            right: 10px;
        }
 
        th.sort-desc::after {
-           content: "\25BC"; /* Unicode for ▼ */
+           content: "\25B2"; 
            position: absolute;
            right: 10px;
+       }
+       .hidden-node {
+           display: none !important;
        }
     </style>
 </head>
@@ -42,6 +45,7 @@
    <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/jquery-3.6.0.min.js"></script>
    <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/jquery-ui.min.js"></script>
    <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/jquery.fancytree-all-deps.min.js"></script>
+   <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/filterState.js"></script>
    <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/filterWidget.js"></script>
    <script src="/gnr_slide_scanning/SlideScanning/Explorer/js/main.js"></script>
 </body>

@@ -298,11 +298,11 @@
 	"dependencies" : 
 	[
 		{
-			"id" : "QtServerTests_autogen_timestamp_deps::@6890427a1f51a3e7e1df"
-		},
-		{
 			"backtrace" : 0,
 			"id" : "QtServerTests_autogen::@6890427a1f51a3e7e1df"
+		},
+		{
+			"id" : "QtServerTests_autogen_timestamp_deps::@6890427a1f51a3e7e1df"
 		}
 	],
 	"id" : "QtServerTests::@6890427a1f51a3e7e1df",
