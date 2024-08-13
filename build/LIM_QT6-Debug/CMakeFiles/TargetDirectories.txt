@@ -1,8 +1,0 @@
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/QtServerTests.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/edit_cache.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/rebuild_cache.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/list_install_components.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/install.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/install/local.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/QtServerTests_autogen_timestamp_deps.dir
-D:/Small_projects/QtServerTests/build/LIM_QT6-Debug/CMakeFiles/QtServerTests_autogen.dir
