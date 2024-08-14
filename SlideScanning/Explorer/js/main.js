@@ -1,85 +1,28 @@
-class QueriesCache {
+import { QueriesCache } from './queriesCache.js';
+import { FilterState } from './filterState.js';
+import { FilterWidget } from './filterWidget.js';
+
+class TreeDataSource {
    constructor() {
-      this.data = {};
+      this.queriedBranchesCache = new QueriesCache();
+      this.rows = {};
    }
 
-   addQuery(query, pathToGroup) {
-      let targetData = this.data;
-      if (pathToGroup) {
-         let keys = Object.keys(pathToGroup).reverse();
-         for (let key of keys) {
-            if (!(key in targetData)) {
-               targetData[key] = {};
-            }
-            if (!(pathToGroup[key] in targetData[key])) {
-               targetData[key][pathToGroup[key]] = {};
-            }
-            targetData = targetData[key][pathToGroup[key]];
-         }
-      }
-      targetData[query] = {};
-   }
-
-   hasQuery(query, pathToGroup, reversKeys = false) {
-      let targetData = this.data;
-      if (pathToGroup) {
-         let keys = reversKeys ? Object.keys(pathToGroup).reverse() : Object.keys(pathToGroup);
-         for (let key of keys) {
-            if (!((key in targetData) && (pathToGroup[key] in targetData[key]))) {
-               return false;
-            } else {
-               targetData = targetData[key][pathToGroup[key]];
-            }
-         }
-      }
-      return (query in targetData);
-   }
-}
-
-const TreeManager = {
-   headers: [],
-   rows: {},
-   sortOrder: {},
-   filters: new FilterState(), // Singleton instance of FilterState
-   queriedBranchesCache: new QueriesCache(),
-   dragStartX: 0,
-   dragStartY: 0,
-   dragThreshold: 5,
-   filterWidget: null,
-
-   init: function () {
-      document.addEventListener("DOMContentLoaded", function () {
-         TreeManager.filterWidget = new FilterWidget("fancyTreeFilterContainer", TreeManager.getUniqueValues);
-         TreeManager.fetchHeaders();
-      });
-       TreeManager.filters.registerCallback((header, source) => {
-           if (source !== TreeManager) {
-               TreeManager.updateOnFilterChanged(header);
-           }
-       });
-   },
-
-   fetchHeaders: function () {
-      fetch('http://localhost:8080/headers', {
+   fetchHeaders() {
+      return fetch('http://localhost:8080/headers', {
          method: 'GET'
       })
          .then(response => response.json())
          .then(headers => {
-            TreeManager.headers = headers;
-            TreeManager.headers.forEach((header) => {
-               TreeManager.sortOrder[header] = "asc";
-            });
-            TreeManager.updateTableHeaders();
-            TreeManager.loadChildren({}).then((treeData) => {
-               TreeManager.renderTree(treeData);
-            });
+            return headers;
          })
          .catch(error => {
             console.error('Error fetching headers:', error);
+            return Promise.reject(error);
          });
-   },
+   }
 
-   fetchRows: function (queryGroup, pathToGroup = null) {
+   fetchRows(queryGroup, pathToGroup = null) {
       let url = 'http://localhost:8080/rows';
       let queryParams = new URLSearchParams();
 
@@ -93,16 +36,6 @@ const TreeManager = {
 
       url += `?${queryParams.toString()}`;
 
-      const mergeRows = (oldRows, newRows) => {
-         newRows.forEach((row) => {
-            Object.keys(row).forEach((key) => {
-               if (!oldRows.hasOwnProperty(row["rowID"])) {
-                  oldRows[row["rowID"]] = [];
-               }
-               oldRows[row["rowID"]][key] = row[key];
-            });
-         });
-      }
       return fetch(url, {
          method: 'GET'
       })
@@ -114,17 +47,84 @@ const TreeManager = {
          })
          .then(rows => {
             this.queriedBranchesCache.addQuery(queryGroup, pathToGroup);
-            mergeRows(TreeManager.rows, rows);
-           if (!(queryGroup in TreeManager.sortOrder)) {
-              TreeManager.sortOrder[queryGroup] = 'asc';
-           }
-            TreeManager.filterWidget.updateOnNewContent(queryGroup, TreeManager.sortOrder[queryGroup]);
+            this.mergeRows(this.rows, rows);
+            // TreeManager.filterWidget.updateOnNewContent(queryGroup, TreeManager.sortOrder[queryGroup]);
+            console.log("Now Fetched: ", rows);
             return rows;
          })
          .catch(error => {
             console.error('Error fetching rows:', error);
             return [];
          });
+   }
+
+   fetchCachedRows(key, pathToGroup) {
+      if (this.queriedBranchesCache.hasQuery(key, pathToGroup)) {
+         return this.rows;
+      }
+      return [];
+   }
+
+   mergeRows(oldRows, newRows) {
+      newRows.forEach((row) => {
+         Object.keys(row).forEach((key) => {
+            if (!oldRows.hasOwnProperty(row["rowID"])) {
+               oldRows[row["rowID"]] = [];
+            }
+            oldRows[row["rowID"]][key] = row[key];
+         });
+      });
+   }
+
+   getUniqueValues(key) {
+      let values = new Set();
+      Object.entries(this.rows).forEach(([_, row]) => {
+         if (Object.keys(row).includes(key)) {
+            values.add(row[key]);
+         }
+      });
+      return values;
+   }
+} 
+
+const TreeManager = {
+   headers: [],
+   sortOrder: {},
+   filters: new FilterState(), // Singleton instance of FilterState
+   dragStartX: 0,
+   dragStartY: 0,
+   dragThreshold: 5,
+   filterWidget: null,
+   dataSource: new TreeDataSource(),
+
+   init: function () {
+      document.addEventListener("DOMContentLoaded", function () {
+         TreeManager.filterWidget = new FilterWidget("fancyTreeFilterContainer", TreeManager.dataSource.getUniqueValues);
+         TreeManager.fetchHeaders();
+      });
+       TreeManager.filters.registerCallback((header, source) => {
+           if (source !== TreeManager) {
+               TreeManager.updateOnFilterChanged(header);
+           }
+       });
+   },
+
+   fetchHeaders: function () {
+      TreeManager.dataSource.fetchHeaders().then( (headers) =>{TreeManager.headers = headers;
+         TreeManager.headers.forEach((header) => {
+            TreeManager.sortOrder[header] = "asc";
+         });
+         TreeManager.updateTableHeaders();
+         TreeManager.loadChildren({}).then((treeData) => {
+            TreeManager.renderTree(treeData);
+         });});
+   },
+
+   fetchRows: function (queryGroup, pathToGroup = null) {
+      return TreeManager.dataSource.fetchRows(queryGroup, pathToGroup).then( (rows) => {
+         TreeManager.filterWidget.updateOnNewContent(queryGroup, TreeManager.sortOrder[queryGroup]);
+         return rows;
+      });
    },
 
    updateTableHeaders: function () {
@@ -195,16 +195,6 @@ const TreeManager = {
       }
 
       TreeManager.filterTree(level, TreeManager.filters.getFilter(header));
-   },
-
-   getUniqueValues: function (key) {
-      let values = new Set();
-      Object.entries(TreeManager.rows).forEach(([id, row]) => {
-         if (Object.keys(row).includes(key)) {
-            values.add(row[key]);
-         }
-      });
-      return values;
    },
 
    updateSortIndicators: function () {
@@ -323,19 +313,12 @@ const TreeManager = {
       if (!containsKey) {
          if (key in toInsert) {
             pathToTarget[key] = toInsert[key];
-            let canExpand = TreeManager.queriedBranchesCache.hasQuery(nextKey, pathToTarget);
+            let canExpand = TreeManager.dataSource.queriedBranchesCache.hasQuery(nextKey, pathToTarget);
             let isLast = key === TreeManager.headers.at(-1);
             target.push({ title: toInsert[key], expanded: canExpand, lazy: !isLast });
             TreeManager.addToObject(key, toInsert, target, pathToTarget); // to insert the rest
          }
       }
-   },
-
-   fetchCachedRows: function (key, pathToGroup) {
-      if (TreeManager.queriedBranchesCache.hasQuery(key, pathToGroup)) {
-         return TreeManager.rows;
-      }
-      return [];
    },
 
    loadChildren: function (node) {
@@ -344,6 +327,7 @@ const TreeManager = {
       let nodeKey = Object.keys(pathToGroup).length ? nodeInfo.key : TreeManager.headers[0];
 
       const buildTreeData = (rows) => {
+        console.log("buildTreeData", rows);
          var treeData = [];
          for (let key in rows) {
             TreeManager.addToObject(nodeKey, rows[key], treeData, {});
@@ -351,12 +335,14 @@ const TreeManager = {
          return treeData;
       }
 
-      let cachedRows = TreeManager.fetchCachedRows(nodeKey, pathToGroup);
+      let cachedRows = TreeManager.dataSource.fetchCachedRows(nodeKey, pathToGroup);
       if (Object.keys(cachedRows).length) {
+          console.log("cached");
          return Promise.resolve(buildTreeData(cachedRows));
       }
 
       return TreeManager.fetchRows(nodeKey, pathToGroup).then((rows) => {
+         console.log("fetched");
          return buildTreeData(rows);
       });
    },

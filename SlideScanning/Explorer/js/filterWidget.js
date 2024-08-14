@@ -1,4 +1,6 @@
-class FilterWidget {
+import { FilterState } from './filterState.js';
+
+export class FilterWidget {
 
     constructor(containerId, getUniqueValuesCallback) {
         this.containerId = containerId;
@@ -7,6 +9,11 @@ class FilterWidget {
         this.activeHeader = "";
         this.filterState = new FilterState(); // Singleton-like instance
         this.getUniqueValues = getUniqueValuesCallback;
+
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = '/gnr_slide_scanning/SlideScanning/Explorer/css/filterwidget.css';
+        document.head.appendChild(link);
     }
 
     createWidgetHead(header, content) {

@@ -11,6 +11,7 @@
         <file>SlideScanning/Explorer/js/filterWidget.js</file>
         <file>SlideScanning/Explorer/css/filterwidget.css</file>
         <file>SlideScanning/Explorer/js/filterState.js</file>
+        <file>SlideScanning/Explorer/js/queriesCache.js</file>
     </qresource>
     <qresource prefix="/">
         <file>dataShort.txt</file>

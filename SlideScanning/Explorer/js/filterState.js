@@ -1,4 +1,4 @@
-class FilterState {
+export class FilterState {
 
     constructor() {
         if (FilterState.instance) {
