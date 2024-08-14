@@ -12,6 +12,10 @@
         <file>SlideScanning/Explorer/css/filterwidget.css</file>
         <file>SlideScanning/Explorer/js/filterState.js</file>
         <file>SlideScanning/Explorer/js/queriesCache.js</file>
+        <file>SlideScanning/Explorer/js/treeDataSource.js</file>
+        <file>SlideScanning/Explorer/js/headerManager.js</file>
+        <file>SlideScanning/Explorer/css/headermanager.css</file>
+        <file>SlideScanning/Explorer/js/TreeManager.js</file>
     </qresource>
     <qresource prefix="/">
         <file>dataShort.txt</file>

@@ -1,0 +1,21 @@
+th {
+    border: 1px solid #ddd;
+    padding: 8px;
+    background-color: #f4f4f4;
+    text-align: left;
+    position: relative;
+    cursor: grab;
+    white-space: nowrap; /* Prevents the header from stretching */
+    padding-right: 30px;
+ }
+ th.sort-asc::after {
+     content: "\25BC"; 
+     position: absolute;
+     right: 10px;
+ }
+
+ th.sort-desc::after {
+     content: "\25B2"; 
+     position: absolute;
+     right: 10px;
+ }

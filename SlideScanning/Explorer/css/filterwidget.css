@@ -18,3 +18,6 @@
 .filter-label-rightgap{
 padding-right: 5px;
 }
+.hidden-node {
+   display: none !important;
+}
