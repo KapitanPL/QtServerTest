@@ -1,21 +1,42 @@
 th {
     border: 1px solid #ddd;
-    padding: 8px;
+    padding: 0; /* Remove padding to handle it within the parts */
     background-color: #f4f4f4;
     text-align: left;
     position: relative;
     cursor: grab;
     white-space: nowrap; /* Prevents the header from stretching */
-    padding-right: 30px;
- }
- th.sort-asc::after {
-     content: "\25BC"; 
-     position: absolute;
-     right: 10px;
- }
+}
 
- th.sort-desc::after {
-     content: "\25B2"; 
-     position: absolute;
-     right: 10px;
- }
+.header-upper {
+    padding: 8px;
+    position: relative;
+    background-color: #f4f4f4;
+    padding-right: 30px;
+}
+
+.header-lower {
+    background-color: #e0e0e0;
+    font-size: 0.65em;
+    color: #333;
+    height: 15px;
+    display: flex;
+    align-items: center; /* Vertically centers the text */
+    justify-content: center; /* Horizontally centers the text */
+}
+
+th.sort-asc .header-upper::after {
+    content: "\25BC";
+    position: absolute;
+    right: 10px;
+    top: 50%; /* Center vertically within the upper part */
+    transform: translateY(-50%);
+}
+
+th.sort-desc .header-upper::after {
+    content: "\25B2";
+    position: absolute;
+    right: 10px;
+    top: 50%; /* Center vertically within the upper part */
+    transform: translateY(-50%);
+}

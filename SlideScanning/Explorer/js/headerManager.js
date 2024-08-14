@@ -27,10 +27,30 @@ export class HeaderManager {
 
         this.headers.forEach(header => {
             const th = document.createElement("th");
-            th.textContent = header;
-            th.setAttribute('data-header', header);
+
+            // Create a container for the upper part
+            const upperPart = document.createElement("div");
+            upperPart.classList.add("header-upper");
+
+            // Header text and sort indicator
+            const headerName = document.createElement("span");
+            headerName.textContent = header;
+
+            upperPart.appendChild(headerName);
+
+            // Create a container for the lower part (highlight background and label)
+            const lowerPart = document.createElement("div");
+            lowerPart.classList.add("header-lower");
+            lowerPart.textContent = "Highlight"; // This can be customized based on your needs
+
+            // Append the upper and lower parts to the th element
+            th.appendChild(upperPart);
+            th.appendChild(lowerPart);
+
+            th.setAttribute('data-header', header); // Ensure the data-header attribute is set correctly
             th.addEventListener('mousedown', this.handleMouseDown.bind(this));
             th.addEventListener('mouseup', this.handleMouseUp.bind(this));
+
             thead.appendChild(th);
         });
 
@@ -99,7 +119,7 @@ export class HeaderManager {
             stop: (event, ui) => {
                 var newHeaders = [];
                 $("#fancyTable thead th").each(function (index, element) {
-                    newHeaders.push($(element).text());
+                    newHeaders.push($(element).attr('data-header')); // Use the data-header attribute instead of text content
                 });
                 this.headers = newHeaders;
                 this.updateTableHeaders();
